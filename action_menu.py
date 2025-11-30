@@ -1,7 +1,7 @@
 """Tkinter-based Action Menu prototype with persistence and journaling."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
@@ -477,6 +477,11 @@ class ActionMenuApp(tk.Tk):
         self._refresh_quick_capture_tree()
         self._refresh_journal_history()
 
+    def _format_local(self, value: datetime) -> str:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone().strftime("%b %d %H:%M")
+
     def _hydrate_reflections(self) -> None:
         self.values_text.delete("1.0", tk.END)
         self.milestones_text.delete("1.0", tk.END)
@@ -535,7 +540,7 @@ class ActionMenuApp(tk.Tk):
                 values=(
                     entry.activity,
                     entry.category,
-                    entry.start.strftime("%b %d %H:%M"),
+                    self._format_local(entry.start),
                     f"{entry.duration_hours:.2f}",
                     entry.calendar_color,
                 ),
@@ -555,7 +560,7 @@ class ActionMenuApp(tk.Tk):
                     log.flow_before,
                     log.flow_after,
                     log.emotion_after,
-                    log.created_at.strftime("%b %d %H:%M"),
+                    self._format_local(log.created_at),
                 ),
             )
         if not self.state.flow_logs:
@@ -584,7 +589,7 @@ class ActionMenuApp(tk.Tk):
                 "",
                 tk.END,
                 iid=item.id,
-                values=(item.text, item.status, item.created_at.strftime("%b %d %H:%M")),
+                values=(item.text, item.status, self._format_local(item.created_at)),
             )
 
     def _refresh_journal_history(self) -> None:
@@ -595,7 +600,7 @@ class ActionMenuApp(tk.Tk):
                 "",
                 tk.END,
                 iid=entry.id,
-                values=(entry.created_at.strftime("%b %d %H:%M"), excerpt),
+                values=(self._format_local(entry.created_at), excerpt),
             )
 
     # endregion hydration
