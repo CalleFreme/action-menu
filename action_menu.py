@@ -17,6 +17,8 @@ from models import (
 )
 from storage import StorageManager, get_default_store_path
 from journal_ai import extract_suggestions
+from ui.flow_dialog import FlowCaptureDialog
+from ui.tooltips import Tooltip
 
 CATEGORY_OPTIONS = ["General", "Creative", "Startup", "Learning", "Body", "Recovery"]
 CATEGORY_COLORS: Dict[str, str] = {
@@ -59,42 +61,6 @@ TIMER_ACTIVITY_SAMPLE = "Deep work: refactor rendering pipeline"
 QUICK_ENTRY_SAMPLE = "Draft lesson on async Rust + plan gym session"
 
 
-class Tooltip:
-    def __init__(self, widget: tk.Widget, text: str) -> None:
-        self.widget = widget
-        self.text = text
-        self.tipwindow: tk.Toplevel | None = None
-        widget.bind("<Enter>", self._show)
-        widget.bind("<Leave>", self._hide)
-        widget.bind("<FocusOut>", self._hide)
-
-    def _show(self, _event: tk.Event | None = None) -> None:
-        if self.tipwindow or not self.text:
-            return
-        x = self.widget.winfo_rootx() + 12
-        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
-        self.tipwindow = tk.Toplevel(self.widget)
-        self.tipwindow.wm_overrideredirect(True)
-        self.tipwindow.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(
-            self.tipwindow,
-            text=self.text,
-            justify=tk.LEFT,
-            background="#ffffe0",
-            relief=tk.SOLID,
-            borderwidth=1,
-            padx=6,
-            pady=3,
-            wraplength=260,
-        )
-        label.pack()
-
-    def _hide(self, _event: tk.Event | None = None) -> None:
-        if self.tipwindow is not None:
-            self.tipwindow.destroy()
-            self.tipwindow = None
-
-
 class ActionMenuApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
@@ -112,7 +78,7 @@ class ActionMenuApp(tk.Tk):
         self.pending_flow_context: Dict[str, int | str] | None = None
         self.current_suggestions: List[JournalSuggestion] = []
         self.flow_dialog: tk.Toplevel | None = None
-        self._tooltips: List[object] = []
+        self._tooltips: List[Tooltip] = []
 
         self._build_style()
         self._build_layout()
@@ -986,6 +952,7 @@ class ActionMenuApp(tk.Tk):
             activity=entry.activity,
             flow_before=int(flow_context.get("flow_before", 3)),
             emotion_before=str(flow_context.get("emotion_before", EMOTIONS[0])),
+            emotions=EMOTIONS,
         )
         self.wait_window(dialog)
         if dialog.result:
@@ -1200,69 +1167,6 @@ class ActionMenuApp(tk.Tk):
 
     def _persist(self) -> None:
         self.storage.save(self.state)
-
-
-class FlowCaptureDialog(tk.Toplevel):
-    def __init__(
-        self,
-        parent: tk.Widget,
-        *,
-        activity: str,
-        flow_before: int,
-        emotion_before: str,
-    ) -> None:
-        super().__init__(parent)
-        self.result: Dict[str, int | str] | None = None
-        self.title("Flow + emotion checkout")
-        self.resizable(False, False)
-        self.transient(parent)
-        self.grab_set()
-        self.protocol("WM_DELETE_WINDOW", self._skip)
-
-        container = ttk.Frame(self, padding=16)
-        container.pack(fill=tk.BOTH, expand=True)
-
-        ttk.Label(container, text=f"How did '{activity}' feel?").pack(anchor=tk.W)
-        ttk.Label(
-            container,
-            text=f"Flow before: {flow_before}/5 · Emotion before: {emotion_before}",
-        ).pack(anchor=tk.W, pady=(0, 8))
-
-        ttk.Label(container, text="Flow after (1-5)").pack(anchor=tk.W)
-        self.flow_scale = tk.Scale(container, from_=1, to=5, orient=tk.HORIZONTAL, length=220)
-        self.flow_scale.set(flow_before)
-        self.flow_scale.pack(fill=tk.X)
-
-        ttk.Label(container, text="Emotion after session").pack(anchor=tk.W, pady=(10, 0))
-        default_emotion = emotion_before if emotion_before in EMOTIONS else EMOTIONS[0]
-        self.emotion_var = tk.StringVar(value=default_emotion)
-        ttk.Combobox(container, values=EMOTIONS, textvariable=self.emotion_var, state="readonly").pack(fill=tk.X)
-
-        ttk.Label(container, text="What is this feeling communicating?").pack(anchor=tk.W, pady=(10, 0))
-        self.message_text = tk.Text(container, height=3, wrap=tk.WORD)
-        self.message_text.pack(fill=tk.BOTH, expand=True)
-
-        ttk.Label(container, text="What is it motivating you to do?").pack(anchor=tk.W, pady=(10, 0))
-        self.motivation_text = tk.Text(container, height=3, wrap=tk.WORD)
-        self.motivation_text.pack(fill=tk.BOTH, expand=True)
-
-        actions = ttk.Frame(container)
-        actions.pack(fill=tk.X, pady=(12, 0))
-        ttk.Button(actions, text="Save log", command=self._save).pack(side=tk.RIGHT)
-        ttk.Button(actions, text="Skip", command=self._skip).pack(side=tk.RIGHT, padx=(0, 8))
-
-    def _save(self) -> None:
-        self.result = {
-            "flow_after": int(self.flow_scale.get()),
-            "emotion_after": self.emotion_var.get(),
-            "message": self.message_text.get("1.0", tk.END).strip(),
-            "motivation": self.motivation_text.get("1.0", tk.END).strip(),
-        }
-        self.destroy()
-
-    def _skip(self) -> None:
-        self.result = None
-        self.destroy()
 
 
 if __name__ == "__main__":
