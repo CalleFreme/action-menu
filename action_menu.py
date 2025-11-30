@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List
+from typing import Callable, Dict, List
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 
@@ -119,6 +119,13 @@ class ActionMenuApp(tk.Tk):
         self._hydrate_all()
 
     # region build layout
+    def _bind_submit(self, widget: tk.Widget, handler: Callable[[], None]) -> None:
+        def _on_return(event: tk.Event) -> str:
+            handler()
+            return "break"
+
+        widget.bind("<Return>", _on_return)
+
     def _build_style(self) -> None:
         style = ttk.Style(self)
         style.configure("Header.TLabel", font=("Segoe UI", 20, "bold"))
@@ -220,6 +227,7 @@ class ActionMenuApp(tk.Tk):
             sample = GOAL_FIELD_SAMPLES.get(key)
             if sample:
                 entry.insert(0, sample)
+            self._bind_submit(entry, self._add_goal)
         form.columnconfigure(1, weight=1)
 
         ttk.Label(form, text="Horizon").grid(row=len(fields), column=0, sticky=tk.W, pady=3)
@@ -283,6 +291,7 @@ class ActionMenuApp(tk.Tk):
             sample = HABIT_FIELD_SAMPLES.get(key)
             if sample:
                 entry.insert(0, sample)
+            self._bind_submit(entry, self._add_habit)
         form.columnconfigure(1, weight=1)
 
         ttk.Label(form, text="Linked goal").grid(row=len(fields), column=0, sticky=tk.W, pady=3)
@@ -333,6 +342,7 @@ class ActionMenuApp(tk.Tk):
         self.action_entry.grid(row=0, column=1, sticky=tk.EW, padx=6, pady=3)
         self.action_entry.insert(0, ACTION_SAMPLE)
         self.action_entry.select_range(0, tk.END)
+        self._bind_submit(self.action_entry, self._add_weekly_action)
         form.columnconfigure(1, weight=1)
 
         ttk.Label(form, text="Timeframe").grid(row=1, column=0, sticky=tk.W, pady=3)
@@ -414,6 +424,7 @@ class ActionMenuApp(tk.Tk):
             custom_cat,
             "Examples: 'Mentorship', 'Game Design', 'Research'. Once added, choose it in the timer dropdown.",
         )
+        self._bind_submit(self.new_timer_category, self._add_timer_category)
 
         mood_frame = ttk.Frame(form)
         mood_frame.grid(row=2, column=0, columnspan=2, sticky=tk.EW, pady=6)
@@ -577,6 +588,7 @@ class ActionMenuApp(tk.Tk):
         self.quick_entry.grid(row=0, column=1, sticky=tk.EW, padx=6)
         self.quick_entry.insert(0, QUICK_ENTRY_SAMPLE)
         self.quick_entry.select_range(0, tk.END)
+        self._bind_submit(self.quick_entry, self._add_quick_item)
         entry_frame.columnconfigure(1, weight=1)
         ttk.Button(entry_frame, text="Capture", command=self._add_quick_item).grid(row=0, column=2)
         self._attach_tooltip(
