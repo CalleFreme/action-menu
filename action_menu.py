@@ -361,7 +361,7 @@ class ActionMenuApp(tk.Tk):
 
         left = ttk.Frame(editor)
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
-        ttk.Label(left, text="Daily journal (channel your inner Morrowind scribe)").pack(anchor=tk.W)
+        ttk.Label(left, text="Daily journal (What happened today, anyway?)").pack(anchor=tk.W)
         self.journal_text = tk.Text(left, height=12, wrap=tk.WORD)
         self.journal_text.pack(fill=tk.BOTH, expand=True, pady=6)
         self.journal_text.bind("<KeyRelease>", lambda _event: self._update_journal_suggestions())
