@@ -39,6 +39,59 @@ EMOTIONS = [
     "Excited",
 ]
 QUICK_CAPTURE_STATUSES = ["Inbox", "Today", "Later", "Archived"]
+GOAL_FIELD_SAMPLES: Dict[str, str] = {
+    "title": "Ship Unreal networking demo",
+    "specific": "Implement replication + lag compensation for co-op prototype",
+    "measurable": "Playable session with <80ms latency spikes",
+    "achievable": "Reuse existing engine scaffolding + Epic docs",
+    "relevant": "Supports CTO vision + teaching curriculum",
+    "time_bound": "Beta-ready by March 30",
+}
+HABIT_FIELD_SAMPLES: Dict[str, str] = {
+    "name": "Post-lunch bug triage walk",
+    "anchor": "Right after standup",
+    "frequency": "Weekdays",
+    "success_metric": "Close 2 issues / day",
+}
+ACTION_SAMPLE = "Pitch co-op boss fight concept (ties to Unreal goal)"
+TIMER_ACTIVITY_SAMPLE = "Deep work: refactor rendering pipeline"
+QUICK_ENTRY_SAMPLE = "Draft lesson on async Rust + plan gym session"
+
+
+class Tooltip:
+    def __init__(self, widget: tk.Widget, text: str) -> None:
+        self.widget = widget
+        self.text = text
+        self.tipwindow: tk.Toplevel | None = None
+        widget.bind("<Enter>", self._show)
+        widget.bind("<Leave>", self._hide)
+        widget.bind("<FocusOut>", self._hide)
+
+    def _show(self, _event: tk.Event | None = None) -> None:
+        if self.tipwindow or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 12
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
+        self.tipwindow = tk.Toplevel(self.widget)
+        self.tipwindow.wm_overrideredirect(True)
+        self.tipwindow.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(
+            self.tipwindow,
+            text=self.text,
+            justify=tk.LEFT,
+            background="#ffffe0",
+            relief=tk.SOLID,
+            borderwidth=1,
+            padx=6,
+            pady=3,
+            wraplength=260,
+        )
+        label.pack()
+
+    def _hide(self, _event: tk.Event | None = None) -> None:
+        if self.tipwindow is not None:
+            self.tipwindow.destroy()
+            self.tipwindow = None
 
 
 class ActionMenuApp(tk.Tk):
@@ -56,6 +109,7 @@ class ActionMenuApp(tk.Tk):
         self.pending_flow_context: Dict[str, int | str] | None = None
         self.current_suggestions: List[JournalSuggestion] = []
         self.flow_dialog: tk.Toplevel | None = None
+        self._tooltips: List[object] = []
 
         self._build_style()
         self._build_layout()
@@ -97,6 +151,9 @@ class ActionMenuApp(tk.Tk):
         notebook.add(self._build_quick_capture_tab(notebook), text="Quick Capture")
         notebook.add(self._build_integrations_tab(notebook), text="Integrations")
 
+    def _attach_tooltip(self, widget: tk.Widget, text: str) -> None:
+        self._tooltips.append(Tooltip(widget, text))
+
     def _build_vision_tab(self, parent: ttk.Notebook) -> ttk.Frame:
         tab = ttk.Frame(parent, padding=20)
 
@@ -134,6 +191,12 @@ class ActionMenuApp(tk.Tk):
     def _build_goals_tab(self, parent: ttk.Notebook) -> ttk.Frame:
         tab = ttk.Frame(parent, padding=20)
 
+        ttk.Label(
+            tab,
+            text="Clarify one SMART goal at a time—start with the next milestone that unblocks everything else.",
+            wraplength=900,
+        ).pack(anchor=tk.W, pady=(0, 8))
+
         form = ttk.Labelframe(tab, text="Define a SMART goal", style="Card.TLabelframe")
         form.pack(fill=tk.X)
 
@@ -151,6 +214,9 @@ class ActionMenuApp(tk.Tk):
             entry = ttk.Entry(form)
             entry.grid(row=idx, column=1, sticky=tk.EW, padx=6, pady=3)
             self.goal_vars[key] = entry
+            sample = GOAL_FIELD_SAMPLES.get(key)
+            if sample:
+                entry.insert(0, sample)
         form.columnconfigure(1, weight=1)
 
         ttk.Label(form, text="Horizon").grid(row=len(fields), column=0, sticky=tk.W, pady=3)
@@ -180,11 +246,21 @@ class ActionMenuApp(tk.Tk):
             width = 120 if col != "title" else 320
             self.goal_tree.column(col, anchor=anchor, width=width)
         self.goal_tree.pack(fill=tk.BOTH, expand=True, pady=12)
+        self._attach_tooltip(
+            self.goal_tree,
+            "Store each goal with category + horizon. Use the buttons above to add new entries and double-click to review details.",
+        )
 
         return tab
 
     def _build_habits_tab(self, parent: ttk.Notebook) -> ttk.Frame:
         tab = ttk.Frame(parent, padding=20)
+
+        ttk.Label(
+            tab,
+            text="Design habits by pairing a simple cue with a tiny celebration—keep the loop obvious and rewarding.",
+            wraplength=900,
+        ).pack(anchor=tk.W, pady=(0, 8))
 
         form = ttk.Labelframe(tab, text="Habit design (cue → action → celebrate)", style="Card.TLabelframe")
         form.pack(fill=tk.X)
@@ -201,6 +277,9 @@ class ActionMenuApp(tk.Tk):
             entry = ttk.Entry(form)
             entry.grid(row=idx, column=1, sticky=tk.EW, padx=6, pady=3)
             self.habit_entries[key] = entry
+            sample = HABIT_FIELD_SAMPLES.get(key)
+            if sample:
+                entry.insert(0, sample)
         form.columnconfigure(1, weight=1)
 
         ttk.Label(form, text="Linked goal").grid(row=len(fields), column=0, sticky=tk.W, pady=3)
@@ -219,15 +298,29 @@ class ActionMenuApp(tk.Tk):
             self.habit_tree.heading(col, text=label)
             self.habit_tree.column(col, anchor=tk.W, width=150)
         self.habit_tree.pack(fill=tk.BOTH, expand=True, pady=12)
+        self._attach_tooltip(
+            self.habit_tree,
+            "Habits pull from the cue/anchor you define above. Link them to goals for better context.",
+        )
 
         ttk.Label(tab, text="Micro-actions spawned by habits:").pack(anchor=tk.W)
         self.action_list = tk.Listbox(tab, height=5)
         self.action_list.pack(fill=tk.X, pady=(6, 0))
+        self._attach_tooltip(
+            self.action_list,
+            "Use this list as inspiration for quick actions pulled from your habits.",
+        )
 
         return tab
 
     def _build_weekly_tab(self, parent: ttk.Notebook) -> ttk.Frame:
         tab = ttk.Frame(parent, padding=20)
+
+        ttk.Label(
+            tab,
+            text="Send your favorite experiments into the Weekly Menu, then promote just a few into Today focus.",
+            wraplength=900,
+        ).pack(anchor=tk.W, pady=(0, 8))
 
         form = ttk.Labelframe(tab, text="Weekly action generator", style="Card.TLabelframe")
         form.pack(fill=tk.X)
@@ -235,6 +328,8 @@ class ActionMenuApp(tk.Tk):
         ttk.Label(form, text="Action description").grid(row=0, column=0, sticky=tk.W, pady=3)
         self.action_entry = ttk.Entry(form)
         self.action_entry.grid(row=0, column=1, sticky=tk.EW, padx=6, pady=3)
+        self.action_entry.insert(0, ACTION_SAMPLE)
+        self.action_entry.select_range(0, tk.END)
         form.columnconfigure(1, weight=1)
 
         ttk.Label(form, text="Timeframe").grid(row=1, column=0, sticky=tk.W, pady=3)
@@ -259,10 +354,18 @@ class ActionMenuApp(tk.Tk):
             listbox = tk.Listbox(frame, height=12)
             listbox.pack(fill=tk.BOTH, expand=True)
             self.week_lists[bucket] = listbox
+            self._attach_tooltip(
+                listbox,
+                "Drop actions into this bucket. Drag-and-drop isn't enabled yet, so use the form above to add items.",
+            )
 
         ttk.Label(tab, text="Today Focus (pick three)").pack(anchor=tk.W, pady=(6, 0))
         self.today_focus = tk.Listbox(tab, height=4)
         self.today_focus.pack(fill=tk.X, pady=6)
+        self._attach_tooltip(
+            self.today_focus,
+            "Limit Today to three high-leverage moves—this keeps the day realistic.",
+        )
 
         ttk.Button(tab, text="Send top items to Today", command=self._send_focus_to_today).pack(anchor=tk.E)
 
@@ -271,12 +374,20 @@ class ActionMenuApp(tk.Tk):
     def _build_time_tab(self, parent: ttk.Notebook) -> ttk.Frame:
         tab = ttk.Frame(parent, padding=20)
 
+        ttk.Label(
+            tab,
+            text="Track deep work blocks and capture how you felt before/after to spot energy patterns.",
+            wraplength=900,
+        ).pack(anchor=tk.W, pady=(0, 8))
+
         form = ttk.Labelframe(tab, text="Deep work timer", style="Card.TLabelframe")
         form.pack(fill=tk.X)
 
         ttk.Label(form, text="Activity / experiment").grid(row=0, column=0, sticky=tk.W, pady=3)
         self.timer_activity = ttk.Entry(form)
         self.timer_activity.grid(row=0, column=1, sticky=tk.EW, padx=6, pady=3)
+        self.timer_activity.insert(0, TIMER_ACTIVITY_SAMPLE)
+        self.timer_activity.select_range(0, tk.END)
         form.columnconfigure(1, weight=1)
 
         ttk.Label(form, text="Category").grid(row=1, column=0, sticky=tk.W, pady=3)
@@ -292,15 +403,19 @@ class ActionMenuApp(tk.Tk):
         mood_frame.grid(row=2, column=0, columnspan=2, sticky=tk.EW, pady=6)
         ttk.Label(mood_frame, text="Flow before block (1-5)").grid(row=0, column=0, sticky=tk.W)
         self.flow_before_var = tk.IntVar(value=3)
-        ttk.Scale(mood_frame, from_=1, to=5, orient=tk.HORIZONTAL, variable=self.flow_before_var).grid(
+        flow_scale = ttk.Scale(mood_frame, from_=1, to=5, orient=tk.HORIZONTAL, variable=self.flow_before_var)
+        flow_scale.grid(
             row=0, column=1, sticky=tk.EW, padx=6
         )
+        self._attach_tooltip(flow_scale, "How ready or focused do you feel right now? 1 = scattered, 5 = peak flow.")
         mood_frame.columnconfigure(1, weight=1)
         ttk.Label(mood_frame, text="Emotion right now").grid(row=1, column=0, sticky=tk.W, pady=3)
         self.emotion_before_var = tk.StringVar(value=EMOTIONS[0])
-        ttk.Combobox(mood_frame, values=EMOTIONS, textvariable=self.emotion_before_var, state="readonly").grid(
+        emotion_combo = ttk.Combobox(mood_frame, values=EMOTIONS, textvariable=self.emotion_before_var, state="readonly")
+        emotion_combo.grid(
             row=1, column=1, sticky=tk.EW, padx=6
         )
+        self._attach_tooltip(emotion_combo, "Capture a quick emotion snapshot so you can correlate feelings with work types.")
 
         button_frame = ttk.Frame(form)
         button_frame.grid(row=3, column=0, columnspan=2, pady=6)
@@ -309,7 +424,9 @@ class ActionMenuApp(tk.Tk):
         ttk.Button(button_frame, text="Manual log", command=self._manual_time_entry).grid(row=0, column=2, padx=6)
 
         self.timer_status = tk.StringVar(value="Timer idle")
-        ttk.Label(tab, textvariable=self.timer_status, foreground="#0078d4").pack(anchor=tk.W, pady=(10, 0))
+        status_label = ttk.Label(tab, textvariable=self.timer_status, foreground="#0078d4")
+        status_label.pack(anchor=tk.W, pady=(10, 0))
+        self._attach_tooltip(status_label, "Displays whether a block is actively running or logged.")
 
         self.time_tree = ttk.Treeview(
             tab,
@@ -326,6 +443,10 @@ class ActionMenuApp(tk.Tk):
             self.time_tree.heading(col, text=label)
             self.time_tree.column(col, anchor=anchor, width=width)
         self.time_tree.pack(fill=tk.BOTH, expand=True, pady=12)
+        self._attach_tooltip(
+            self.time_tree,
+            "Each entry includes color tags that align with categories—perfect for calendar exports later.",
+        )
 
         self.effort_summary = tk.StringVar(value="No hours tracked yet.")
         ttk.Label(tab, textvariable=self.effort_summary, wraplength=900).pack(anchor=tk.W)
@@ -348,11 +469,21 @@ class ActionMenuApp(tk.Tk):
             self.flow_log_tree.heading(col, text=label)
             self.flow_log_tree.column(col, anchor=anchor, width=width)
         self.flow_log_tree.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
+        self._attach_tooltip(
+            self.flow_log_tree,
+            "Logging after-action flow + emotion reveals what work gives energy. Fill it in after each block.",
+        )
 
         return tab
 
     def _build_journal_tab(self, parent: ttk.Notebook) -> ttk.Frame:
         tab = ttk.Frame(parent, padding=20)
+
+        ttk.Label(
+            tab,
+            text="Free-write on the left; the right panel highlights sentences you can turn into actions immediately.",
+            wraplength=900,
+        ).pack(anchor=tk.W, pady=(0, 8))
 
         editor = ttk.Frame(tab)
         editor.pack(fill=tk.BOTH, expand=True)
@@ -365,6 +496,10 @@ class ActionMenuApp(tk.Tk):
         self.journal_text = tk.Text(left, height=12, wrap=tk.WORD)
         self.journal_text.pack(fill=tk.BOTH, expand=True, pady=6)
         self.journal_text.bind("<KeyRelease>", lambda _event: self._update_journal_suggestions())
+        self._attach_tooltip(
+            self.journal_text,
+            "Write freely; keywords like 'want to' or 'today' trigger suggestions automatically.",
+        )
         ttk.Button(left, text="Save entry", command=self._save_journal_entry, style="Accent.TButton").pack(anchor=tk.E)
 
         right = ttk.Frame(editor)
@@ -372,6 +507,10 @@ class ActionMenuApp(tk.Tk):
         ttk.Label(right, text="Actionable suggestions").pack(anchor=tk.W)
         self.journal_suggestions = tk.Listbox(right, height=6)
         self.journal_suggestions.pack(fill=tk.X, pady=4)
+        self._attach_tooltip(
+            self.journal_suggestions,
+            "Select a line and draft it into Today focus, a goal, a habit, or the quick capture inbox.",
+        )
 
         btns = ttk.Frame(right)
         btns.pack(fill=tk.X, pady=(4, 10))
@@ -393,6 +532,10 @@ class ActionMenuApp(tk.Tk):
         self.journal_history.column("excerpt", width=240, anchor=tk.W)
         self.journal_history.pack(fill=tk.BOTH, expand=True)
         self.journal_history.bind("<<TreeviewSelect>>", self._on_journal_select)
+        self._attach_tooltip(
+            self.journal_history,
+            "Tap any row to reload that entry's text and suggestions.",
+        )
 
         self.journal_detail = tk.Text(tab, height=6, wrap=tk.WORD)
         self.journal_detail.configure(state=tk.DISABLED)
@@ -405,13 +548,25 @@ class ActionMenuApp(tk.Tk):
     def _build_quick_capture_tab(self, parent: ttk.Notebook) -> ttk.Frame:
         tab = ttk.Frame(parent, padding=20)
 
+        ttk.Label(
+            tab,
+            text="Treat this like an inbox—capture the thought, then triage it into Today, Later, or Archive when ready.",
+            wraplength=900,
+        ).pack(anchor=tk.W, pady=(0, 8))
+
         entry_frame = ttk.Frame(tab)
         entry_frame.pack(fill=tk.X)
         ttk.Label(entry_frame, text="Drop a thought, task, or idea:").grid(row=0, column=0, sticky=tk.W)
         self.quick_entry = ttk.Entry(entry_frame)
         self.quick_entry.grid(row=0, column=1, sticky=tk.EW, padx=6)
+        self.quick_entry.insert(0, QUICK_ENTRY_SAMPLE)
+        self.quick_entry.select_range(0, tk.END)
         entry_frame.columnconfigure(1, weight=1)
         ttk.Button(entry_frame, text="Capture", command=self._add_quick_item).grid(row=0, column=2)
+        self._attach_tooltip(
+            self.quick_entry,
+            "Keep it short—brain dumps, errand reminders, or creative sparks all belong here.",
+        )
 
         ttk.Label(tab, text="Inbox → Today → Later → Archived").pack(anchor=tk.W, pady=(10, 0))
         self.quick_tree = ttk.Treeview(
@@ -427,6 +582,10 @@ class ActionMenuApp(tk.Tk):
         self.quick_tree.column("status", width=100, anchor=tk.CENTER)
         self.quick_tree.column("created", width=140, anchor=tk.CENTER)
         self.quick_tree.pack(fill=tk.BOTH, expand=True, pady=8)
+        self._attach_tooltip(
+            self.quick_tree,
+            "Select one or more entries, then use the buttons below to pin to Today, schedule Later, archive, edit, or delete.",
+        )
 
         action_bar = ttk.Frame(tab)
         action_bar.pack(fill=tk.X)
