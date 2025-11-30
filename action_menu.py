@@ -433,7 +433,8 @@ class ActionMenuApp(tk.Tk):
         ttk.Button(action_bar, text="Pin to Today", command=lambda: self._update_quick_status("Today")).grid(row=0, column=0, padx=4)
         ttk.Button(action_bar, text="Schedule Later", command=lambda: self._update_quick_status("Later")).grid(row=0, column=1, padx=4)
         ttk.Button(action_bar, text="Archive", command=lambda: self._update_quick_status("Archived")).grid(row=0, column=2, padx=4)
-        ttk.Button(action_bar, text="Delete", command=self._delete_quick_item).grid(row=0, column=3, padx=4)
+        ttk.Button(action_bar, text="Edit", command=self._edit_quick_item).grid(row=0, column=3, padx=4)
+        ttk.Button(action_bar, text="Delete", command=self._delete_quick_item).grid(row=0, column=4, padx=4)
 
         self.quick_status_msg = tk.StringVar(value="")
         ttk.Label(tab, textvariable=self.quick_status_msg, foreground="#0078d4").pack(anchor=tk.W)
@@ -950,6 +951,35 @@ class ActionMenuApp(tk.Tk):
             self._persist()
             self._refresh_quick_capture_tree()
         self.quick_status_msg.set(f"Removed {removed} item(s)")
+
+    def _edit_quick_item(self) -> None:
+        selection = self.quick_tree.selection()
+        if not selection:
+            messagebox.showinfo("Quick capture", "Select an item to edit.")
+            return
+        item_id = selection[0]
+        item = next((entry for entry in self.state.quick_capture if entry.id == item_id), None)
+        if not item:
+            messagebox.showwarning("Quick capture", "Unable to locate that item.")
+            return
+        new_text = simpledialog.askstring(
+            "Edit quick capture",
+            "Update the text for this entry:",
+            initialvalue=item.text,
+            parent=self,
+        )
+        if new_text is None:
+            return
+        new_text = new_text.strip()
+        if not new_text:
+            messagebox.showwarning("Quick capture", "Text cannot be empty.")
+            return
+        if new_text == item.text:
+            return
+        item.text = new_text
+        self._persist()
+        self._refresh_quick_capture_tree()
+        self.quick_status_msg.set("Updated entry text")
 
     def _mock_calendar_connect(self) -> None:
         messagebox.showinfo(
