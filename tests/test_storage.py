@@ -1,4 +1,3 @@
-import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -16,6 +15,7 @@ class StorageManagerTests(unittest.TestCase):
             state = AppState()
             state.goals.append(SmartGoal.new(title="Ship Unreal prototype"))
             state.weekly_actions["Today"].append("Refactor rendering pipeline")
+            state.timer_categories.append("Mentorship")
 
             manager.save(state)
 
@@ -24,6 +24,7 @@ class StorageManagerTests(unittest.TestCase):
             self.assertEqual(len(reloaded.goals), 1)
             self.assertEqual(reloaded.goals[0].title, "Ship Unreal prototype")
             self.assertEqual(reloaded.weekly_actions["Today"], ["Refactor rendering pipeline"])
+            self.assertIn("Mentorship", reloaded.timer_categories)
 
     def test_invalid_json_returns_fresh_state(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -34,6 +35,7 @@ class StorageManagerTests(unittest.TestCase):
 
             self.assertIsInstance(loaded, AppState)
             self.assertEqual(len(loaded.goals), 0)
+            self.assertGreaterEqual(len(loaded.timer_categories), 1)
 
 
 if __name__ == "__main__":

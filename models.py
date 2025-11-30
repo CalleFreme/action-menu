@@ -308,6 +308,9 @@ class AppState:
     weekly_actions: Dict[str, List[str]] = field(
         default_factory=lambda: {"Today": [], "This Week": [], "This Month": []}
     )
+    timer_categories: List[str] = field(
+        default_factory=lambda: ["Creative", "Learning", "Working", "Body", "Recovery"]
+    )
     time_entries: List[TimeEntry] = field(default_factory=list)
     flow_logs: List[FlowLog] = field(default_factory=list)
     journal_entries: List[JournalEntry] = field(default_factory=list)
@@ -319,6 +322,7 @@ class AppState:
             "goals": [g.to_dict() for g in self.goals],
             "habits": [h.to_dict() for h in self.habits],
             "weekly_actions": self.weekly_actions,
+            "timer_categories": self.timer_categories,
             "time_entries": [t.to_dict() for t in self.time_entries],
             "flow_logs": [f.to_dict() for f in self.flow_logs],
             "journal_entries": [j.to_dict() for j in self.journal_entries],
@@ -333,6 +337,9 @@ class AppState:
             habits=[HabitPlan.from_dict(item) for item in data.get("habits", [])],
             weekly_actions=data.get(
                 "weekly_actions", {"Today": [], "This Week": [], "This Month": []}
+            ),
+            timer_categories=data.get(
+                "timer_categories", ["Creative", "Learning", "Working", "Body", "Recovery"]
             ),
             time_entries=[TimeEntry.from_dict(item) for item in data.get("time_entries", [])],
             flow_logs=[FlowLog.from_dict(item) for item in data.get("flow_logs", [])],

@@ -27,6 +27,7 @@ CATEGORY_COLORS: Dict[str, str] = {
     "Body": "#2e8b57",
     "Recovery": "#c55bff",
 }
+DEFAULT_TIMER_CATEGORIES = ["Creative", "Learning", "Working", "Body", "Recovery"]
 EMOTIONS = [
     "Calm",
     "Curious",
@@ -104,6 +105,8 @@ class ActionMenuApp(tk.Tk):
         store_path = get_default_store_path()
         self.storage = StorageManager(store_path)
         self.state = self.storage.load()
+        if not self.state.timer_categories:
+            self.state.timer_categories = list(DEFAULT_TIMER_CATEGORIES)
 
         self.timer_start: datetime | None = None
         self.pending_flow_context: Dict[str, int | str] | None = None
@@ -393,11 +396,24 @@ class ActionMenuApp(tk.Tk):
         ttk.Label(form, text="Category").grid(row=1, column=0, sticky=tk.W, pady=3)
         self.timer_category = ttk.Combobox(
             form,
-            values=["Creative", "Learning", "Shipping", "Body", "Recovery"],
+            values=self.state.timer_categories,
             state="readonly",
         )
         self.timer_category.current(0)
         self.timer_category.grid(row=1, column=1, sticky=tk.EW, padx=6, pady=3)
+
+        custom_cat = ttk.Labelframe(tab, text="Custom deep-work categories", style="Card.TLabelframe")
+        custom_cat.pack(fill=tk.X, pady=(8, 0))
+        ttk.Label(custom_cat, text="Add a category that matches your work vocabulary").grid(row=0, column=0, columnspan=2, sticky=tk.W)
+        ttk.Label(custom_cat, text="Name").grid(row=1, column=0, sticky=tk.W, pady=(6, 0))
+        self.new_timer_category = ttk.Entry(custom_cat)
+        self.new_timer_category.grid(row=1, column=1, sticky=tk.EW, padx=6, pady=(6, 0))
+        custom_cat.columnconfigure(1, weight=1)
+        ttk.Button(custom_cat, text="Add category", command=self._add_timer_category).grid(row=2, column=1, sticky=tk.E, pady=6)
+        self._attach_tooltip(
+            custom_cat,
+            "Examples: 'Mentorship', 'Game Design', 'Research'. Once added, choose it in the timer dropdown.",
+        )
 
         mood_frame = ttk.Frame(form)
         mood_frame.grid(row=2, column=0, columnspan=2, sticky=tk.EW, pady=6)
@@ -689,6 +705,14 @@ class ActionMenuApp(tk.Tk):
         self.habit_goal.configure(values=goal_titles)
         motivation_options = goal_titles + [habit.name for habit in self.state.habits]
         self.action_motivation.configure(values=motivation_options)
+        self._refresh_timer_category_choices()
+
+    def _refresh_timer_category_choices(self) -> None:
+        if not hasattr(self, "timer_category"):
+            return
+        self.timer_category.configure(values=self.state.timer_categories)
+        if self.timer_category.get() not in self.state.timer_categories and self.state.timer_categories:
+            self.timer_category.set(self.state.timer_categories[0])
 
     def _refresh_time_tree(self) -> None:
         self.time_tree.delete(*self.time_tree.get_children())
@@ -838,6 +862,22 @@ class ActionMenuApp(tk.Tk):
         self.today_focus.delete(0, tk.END)
         for item in today_items[:3]:
             self.today_focus.insert(tk.END, item)
+
+    def _add_timer_category(self) -> None:
+        if not hasattr(self, "new_timer_category"):
+            return
+        label = self.new_timer_category.get().strip()
+        if not label:
+            messagebox.showwarning("Time & Flow", "Name the category before adding it.")
+            return
+        if label in self.state.timer_categories:
+            messagebox.showinfo("Time & Flow", "That category already exists.")
+            return
+        self.state.timer_categories.append(label)
+        self._persist()
+        self._refresh_timer_category_choices()
+        self.timer_category.set(label)
+        self.new_timer_category.delete(0, tk.END)
 
     def _start_timer(self) -> None:
         if self.timer_start is not None:
