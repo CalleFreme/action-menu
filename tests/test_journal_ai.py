@@ -21,6 +21,17 @@ class JournalAISuggestionsTests(unittest.TestCase):
         suggestions = extract_suggestions(text)
         self.assertEqual(suggestions, [])
 
+    def test_expanded_keyword_set_finds_additional_matches(self) -> None:
+        text = (
+            "Plan to publish my own game engine soon. "
+            "My nightly ritual is to stretch and review code. "
+            "Schedule the art sync email this week. "
+            "Feeling overwhelmed with the backlog."
+        )
+        suggestions = extract_suggestions(text)
+        kinds = [item.kind for item in suggestions]
+        self.assertEqual(kinds, ["goal", "habit", "action", "blockage"])
+
 
 if __name__ == "__main__":
     unittest.main()

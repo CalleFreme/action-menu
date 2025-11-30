@@ -7,10 +7,22 @@ from typing import List
 from models import JournalSuggestion
 
 _KEYWORD_PATTERNS = {
-    "goal": re.compile(r"\b(want to|goal|aspire|dream|become)\b", re.IGNORECASE),
-    "habit": re.compile(r"\b(habit|every day|routine|after I)\b", re.IGNORECASE),
-    "action": re.compile(r"\b(today|this week|tonight|right now|start|finish)\b", re.IGNORECASE),
-    "blockage": re.compile(r"\b(stuck|blocked|fear|worried|can't)\b", re.IGNORECASE),
+    "goal": re.compile(
+        r"\b(want to|goal|aspire|dream|become|vision|plan to|aim to|objective|target|would love)\b",
+        re.IGNORECASE,
+    ),
+    "habit": re.compile(
+        r"\b(habit|every day|routine|ritual|each morning|before bed|after I|whenever I)\b",
+        re.IGNORECASE,
+    ),
+    "action": re.compile(
+        r"\b(today|this week|tonight|right now|start|finish|send|draft|schedule|call|ship|email|publish)\b",
+        re.IGNORECASE,
+    ),
+    "blockage": re.compile(
+        r"\b(stuck|blocked|fear|worried|can't|overwhelmed|tired|burned out|anxious|procrastinat)\w*\b",
+        re.IGNORECASE,
+    ),
 }
 
 
